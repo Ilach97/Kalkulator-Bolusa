@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bolus Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .tab { display: none; }
+        .tab-header { cursor: pointer; padding: 10px; background-color: #ddd; display: inline-block; margin-right: 10px; }
+        .tab-header.active { background-color: #bbb; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        input { width: 100%; padding: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>Bolus Calculator</h1>
+
+    <div>
+        <div class="tab-header" onclick="openTab('calculator')">Kalkulator Bolusa</div>
+        <div class="tab-header" onclick="openTab('food')">Hrana - vrijednosti</div>
+    </div>
+
+    <!-- Kalkulator Bolusa Tab -->
+    <div id="calculator" class="tab">
+        <h2>Kalkulator Bolusa</h2>
+        <table>
+            <tr>
+                <th>GUK (mmol/l)</th>
+                <td><input type="number" id="guk" value="4.7" step="0.1"></td>
+            </tr>
+            <tr>
+                <th>Hrana</th>
+                <td>
+                    <select id="foodSelection" onchange="calculateBolus()">
+                        <!-- Namirnice se popunjavaju dinamički -->
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th>Količina</th>
+                <td><input type="number" id="quantity" value="1" step="0.1" onchange="calculateBolus()"></td>
+            </tr>
+            <tr>
+                <th>Ugljikohidrati</th>
+                <td id="carbs"></td>
+            </tr>
+            <tr>
+                <th>Proteini</th>
+                <td id="proteins"></td>
+            </tr>
+            <tr>
+                <th>Bolus - ugljikohidrati</th>
+                <td id="bolusCarbs"></td>
+            </tr>
+            <tr>
+                <th>Bolus - proteini</th>
+                <td id="bolusProteins"></td>
+            </tr>
+            <tr>
+                <th>Korekcija</th>
+                <td id="correction"></td>
+            </tr>
+            <tr>
+                <th>Ukupan bolus</th>
+                <td id="totalBolus"></td>
+            </tr>
+            <tr>
+                <th>Omjer</th>
+                <td id="ratio"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Hrana - vrijednosti Tab -->
+    <div id="food" class="tab">
+        <h2>Hrana - vrijednosti</h2>
+        <table id="foodTable">
+            <thead>
+                <tr>
+                    <th>Naziv</th>
+                    <th>Ugljikohidrati (100g)</th>
+                    <th>Proteini (100g)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dinamički sadržaj -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Predefinirani podaci o hrani
+        const foodDatabase = [
+            { name: "Svinjetina", carbs: 0.0, proteins: 27.0 },
+            { name: "Vrhnje / Mileram", carbs: 3.9, proteins: 2.7 },
+            // Dodaj još namirnica ovdje
+        ];
+
+        function openTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.style.display = 'none');
+            document.getElementById(tabName).style.display = 'block';
+
+            // Postavi prvi tab kao aktivni
+            document.querySelectorAll('.tab-header').forEach(header => header.classList.remove('active'));
+            document.querySelector(`.tab-header[onclick="openTab('${tabName}')"]`).classList.add('active');
+
+            if (tabName === 'food') {
+                loadFoodTable();
+            } else if (tabName === 'calculator') {
+                populateFoodSelection();
+            }
+        }
+
+        function loadFoodTable() {
+            const foodTableBody = document.getElementById('foodTable').querySelector('tbody');
+            foodTableBody.innerHTML = '';
+
+            foodDatabase.forEach((food, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${food.name}</td>
+                    <td>${food.carbs}</td>
+                    <td>${food.proteins}</td>
+                `;
+                foodTableBody.appendChild(row);
+            });
+        }
+
+        function populateFoodSelection() {
+            const foodSelection = document.getElementById('foodSelection');
+            foodSelection.innerHTML = '';
+
+            foodDatabase.forEach((food, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = food.name;
+                foodSelection.appendChild(option);
+            });
+
+            calculateBolus(); // Izračun kod odabira hrane
+        }
+
+        function calculateBolus() {
+            const guk = parseFloat(document.getElementById('guk').value);
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            const foodIndex = parseInt(document.getElementById('foodSelection').value);
+            const food = foodDatabase[foodIndex];
+
+            // Izračun ugljikohidrata i proteina
+            const totalCarbs = food.carbs * quantity;
+            const totalProteins = food.proteins * quantity;
+
+            // Prikaz
+            document.getElementById('carbs').textContent = totalCarbs.toFixed(2);
+            document.getElementById('proteins').textContent = totalProteins.toFixed(2);
+
+            // Bolus izračuni
+            const bolusCarbs = totalCarbs / 5; // 1 jedinica = 5g ugljikohidrata
+            const bolusProteins = totalProteins / 20; // 1 jedinica = 20g proteina
+            const correction = (guk > 4.7) ? (guk - 4.7) / 2 : 0; // Korekcija na 4.7 mmol/l
+
+            const totalBolus = bolusCarbs + bolusProteins + correction;
+
+            // Prikaz bolusa
+            document.getElementById('bolusCarbs').textContent = bolusCarbs.toFixed(2);
+            document.getElementById('bolusProteins').textContent = bolusProteins.toFixed(2);
+            document.getElementById('correction').textContent = correction.toFixed(2);
+            document.getElementById('totalBolus').textContent = totalBolus.toFixed(2);
+
+            // Omjer (75% proteina kroz 3h, ostalo odmah)
+            const immediateBolus = bolusCarbs + correction + 0.25 * bolusProteins;
+            const delayedBolus = 0.75 * bolusProteins;
+
+            document.getElementById('ratio').textContent = `${Math.round(immediateBolus)} / ${Math.round(delayedBolus)} (immediate / delayed)`;
+        }
+
+        // Otvori prvi tab po defaultu
+        openTab('calculator');
+    </script>
+
+</body>
+</html>
